@@ -1,53 +1,75 @@
 package ru.netology;
 
-import com.codeborne.selenide.SelenideElement;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.openqa.selenium.Keys;
 
-import static com.codeborne.selenide.Condition.text;
-import static com.codeborne.selenide.Condition.visible;
+import com.codeborne.selenide.Condition;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import static com.codeborne.selenide.Selectors.byText;
 import static com.codeborne.selenide.Selenide.*;
-import static com.codeborne.selenide.Selenide.$;
-import static ru.netology.DataGenerator.User.*;
+import static ru.netology.DataGenerator.Registration.getRegisteredUser;
+import static ru.netology.DataGenerator.Registration.getUser;
+import static ru.netology.DataGenerator.getAnotherLogin;
+import static ru.netology.DataGenerator.getAnotherPassword;
+
 
 public class AuthTest {
 
-    SelenideElement submitButton = $("[data-test-id='action-login'] .button__text");
-    SelenideElement errorMessage = $("[data-test-id='error-notification'] .notification__content");
-
     @BeforeEach
     void setUp() {
-        activeUserRegistration();
-        open("http://localhost:9999/");
-        $("[data-test-id='login'] .input__control").setValue(getUsername());
-        $("[data-test-id='password'] .input__control").setValue(getPassword());
+        open("http://localhost:9999");
     }
 
     @Test
-    void shouldSucceedLogin() {
-        submitButton.click();
-        $$("h2").findBy(text("Личный кабинет")).shouldBe(visible);
+    @DisplayName("Successful active login registered user")
+    void successfulActiveLoginRegisteredUser() {
+        var registeredUser = getRegisteredUser("active");
+        $("[data-test-id='login'] input").setValue(registeredUser.getLogin());
+        $("[data-test-id='password'] input").setValue(registeredUser.getPassword());
+        $(byText("Продолжить")).click();
+        $(byText("Личный кабинет")).should(Condition.visible);
     }
 
     @Test
-    void shouldNotSucceedLoginByName() {
-        $("[data-test-id='login'] .input__control").sendKeys(Keys.chord(Keys.SHIFT, Keys.HOME), Keys.BACK_SPACE, getAnotherUsername());
-        submitButton.click();
-        errorMessage.shouldBe(visible).shouldHave(text("Ошибка! Неверно указан логин или пароль"));
+    @DisplayName("Error when logging in with the wrong username")
+    void errorWhenLoggingWithWrongUsername() {
+        var registeredUser = getRegisteredUser("active");
+        var wrongLogin = getAnotherLogin();
+        $("[data-test-id='login'] input").setValue(wrongLogin);
+        $("[data-test-id='password'] input").setValue(registeredUser.getPassword());
+        $(byText("Продолжить")).click();
+        $x("//div[text()=\"Ошибка\"]").should(Condition.visible);
     }
 
     @Test
-    void shouldNotSucceedLoginByPassword() {
-        $("[data-test-id='password'] .input__control").sendKeys(Keys.chord(Keys.SHIFT, Keys.HOME), Keys.BACK_SPACE, getAnotherPassword());
-        submitButton.click();
-        errorMessage.shouldBe(visible).shouldHave(text("Ошибка! Неверно указан логин или пароль"));
+    @DisplayName("Should get error message if login with wrong password")
+    void shouldGetErrorIfWrongPassword() {
+        var registeredUser = getRegisteredUser("active");
+        var wrongPassword = getAnotherPassword();
+        $("[data-test-id='login'] input").setValue(registeredUser.getLogin());
+        $("[data-test-id='password'] input").setValue(wrongPassword);
+        $(byText("Продолжить")).click();
+        $x("//div[text()=\"Ошибка\"]").should(Condition.visible);
     }
 
     @Test
-    void shouldNotSucceedLoginByBlock() {
-        inactiveUserRegistration();
-        submitButton.click();
-        errorMessage.shouldBe(visible).shouldHave(text("Ошибка! Пользователь заблокирован"));
+    @DisplayName("Error when logging in as a blocked registered user")
+    void errorWhenLoggingBlockedRegisteredUser() {
+        var blockedUser = getRegisteredUser("blocked");
+        $("[data-test-id='login'] input").setValue(blockedUser.getLogin());
+        $("[data-test-id='password'] input").setValue(blockedUser.getPassword());
+        $(byText("Продолжить")).click();
+        $x("//div[text()=\"Ошибка\"]").should(Condition.visible);
+    }
+
+    @Test
+    @DisplayName("Error when logging in as an unregistered user")
+    void errorWhenLoggingUnregisteredUser() {
+        var notRegisteredUser = getUser("active");
+        $("[data-test-id='login'] input").setValue(notRegisteredUser.getLogin());
+        $("[data-test-id='password'] input").setValue(notRegisteredUser.getPassword());
+        $(byText("Продолжить")).click();
+        $x("//div[text()=\"Ошибка\"]").should(Condition.visible);
     }
 }
